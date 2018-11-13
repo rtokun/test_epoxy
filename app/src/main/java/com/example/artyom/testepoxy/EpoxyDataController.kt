@@ -2,16 +2,29 @@ package com.example.artyom.testepoxy
 
 import android.support.v7.widget.AppCompatRadioButton
 import android.view.View
+import android.view.ViewGroup
 import android.widget.TextView
 import com.airbnb.epoxy.EpoxyAttribute
+import com.airbnb.epoxy.EpoxyController
 import com.airbnb.epoxy.EpoxyHolder
 import com.airbnb.epoxy.EpoxyModelClass
 import com.airbnb.epoxy.EpoxyModelWithHolder
-import com.airbnb.epoxy.TypedEpoxyController
+import com.transitionseverywhere.ChangeBounds
+import com.transitionseverywhere.Fade
+import com.transitionseverywhere.TransitionManager
+import com.transitionseverywhere.TransitionSet
+import kotlinx.android.synthetic.main.row_layout.view.additionalDataContainer
+import kotlinx.android.synthetic.main.row_layout.view.borderViewGroup
 import kotlinx.android.synthetic.main.row_layout.view.radioButton
+import kotlinx.android.synthetic.main.row_layout.view.textViewAdditionalData
 import kotlinx.android.synthetic.main.row_layout.view.textViewTitle
 
-interface OnSelectedListener{
+enum class CurrencyType {
+    FIAT,
+    CRYPTO
+}
+
+interface OnSelectedListener {
     fun onViewModelSelected(data: ViewModelData)
 }
 
@@ -25,21 +38,52 @@ abstract class ViewModel : EpoxyModelWithHolder<ViewModel.Holder>() {
     var onSelectedListener: OnSelectedListener? = null
 
     override fun bind(holder: Holder) {
-        holder.radioButton.isChecked = data.state == ViewModelData.State.EXPANDED
+        super.bind(holder)
+        holder.radioButton.setOnCheckedChangeListener(null)
+        holder.radioButton.isChecked = data.isSelected
         holder.radioButton.setOnCheckedChangeListener { compoundButton, isChecked ->
             onSelectedListener?.onViewModelSelected(data)
         }
+
         holder.title.text = data.titleText
+
+        when (data.currencyType) {
+            CurrencyType.FIAT -> {
+                holder.tvAdditionalData.visibility = View.GONE
+            }
+            CurrencyType.CRYPTO -> {
+                if (data.animateChanges) {
+                    val transitionSet = TransitionSet()
+                    transitionSet.ordering = TransitionSet.ORDERING_SEQUENTIAL
+                    transitionSet.addTransition(ChangeBounds())
+                    TransitionManager.beginDelayedTransition(holder.additionalDataContainer, transitionSet)
+                }
+                holder.tvAdditionalData.visibility = if (data.isSelected) View.VISIBLE else View.GONE
+            }
+        }
+
+        if (data.animateChanges) {
+            TransitionManager.beginDelayedTransition(holder.borderViewGroup, TransitionSet()
+                .addTransition(Fade())
+                .addTransition(ChangeBounds()))
+        }
+        holder.borderViewGroup.visibility = if (data.isSelected) View.VISIBLE else View.INVISIBLE
     }
 
     class Holder : EpoxyHolder() {
 
         lateinit var radioButton: AppCompatRadioButton
         lateinit var title: TextView
+        lateinit var tvAdditionalData: TextView
+        lateinit var additionalDataContainer: ViewGroup
+        lateinit var borderViewGroup: CheckableFrameLayout
 
         override fun bindView(itemView: View) {
             radioButton = itemView.radioButton
             title = itemView.textViewTitle
+            tvAdditionalData = itemView.textViewAdditionalData
+            additionalDataContainer = itemView.additionalDataContainer
+            borderViewGroup = itemView.borderViewGroup
         }
 
     }
@@ -49,37 +93,35 @@ abstract class ViewModel : EpoxyModelWithHolder<ViewModel.Holder>() {
 data class ViewModelData(
     val id: Long,
     val titleText: String,
-    var state: State
-) {
-    enum class State {
-        COLLAPSED,
-        EXPANDED
-    }
-}
+    val isSelected: Boolean,
+    val currencyType: CurrencyType,
+    var animateChanges: Boolean = false
+)
 
-class EpoxyDataController : TypedEpoxyController<List<ViewModelData>>(), OnSelectedListener {
+class EpoxyDataController : EpoxyController(), OnSelectedListener {
 
-    lateinit var data: List<ViewModelData>
+    private lateinit var data: List<ViewModelData>
 
-    override fun buildModels(data: List<ViewModelData>) {
-        this.data = data
-        for ((index, item) in this.data.withIndex()) {
-            add(ViewModel_()
-                .data(item)
-                .onSelectedListener(this)
-                .id(index))
+    override fun buildModels() {
+        for (item in this.data) {
+            add(
+                ViewModel_()
+                    .data(item)
+                    .onSelectedListener(this)
+                    .id(item.id)
+            )
         }
+    }
+
+    fun setData(data: List<ViewModelData>) {
+        this.data = data
+        requestModelBuild()
     }
 
     override fun onViewModelSelected(data: ViewModelData) {
         this.data = this.data.map {
-            if (it.id == data.id) {
-                it.state = ViewModelData.State.EXPANDED
-            } else {
-                it.state = ViewModelData.State.COLLAPSED
-            }
-            return@map it
+            it.copy(isSelected = it.id == data.id, animateChanges = true)
         }
-        setData(this.data)
+        requestModelBuild()
     }
 }

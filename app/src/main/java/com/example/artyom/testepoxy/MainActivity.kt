@@ -20,10 +20,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun getData(): List<ViewModelData> {
-        val viewModelData1 = ViewModelData(1, "title 1", ViewModelData.State.EXPANDED)
-        val viewModelData2 = ViewModelData(2, "title 2", ViewModelData.State.COLLAPSED)
-        val viewModelData3 = ViewModelData(3, "title 3", ViewModelData.State.COLLAPSED)
-        val viewModelData4 = ViewModelData(4, "title 4", ViewModelData.State.COLLAPSED)
-        return listOf(viewModelData1, viewModelData2, viewModelData3, viewModelData4)
+        val viewModelData1 = ViewModelData(1, "title 1", false, CurrencyType.FIAT)
+        val viewModelData2 = ViewModelData(2, "title 2", false, CurrencyType.CRYPTO)
+        return listOf(viewModelData1, viewModelData2)
     }
 }

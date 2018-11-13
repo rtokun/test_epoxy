@@ -39,4 +39,6 @@ dependencies {
 
     implementation 'com.airbnb.android:epoxy:2.19.0'
     kapt 'com.airbnb.android:epoxy-processor:2.19.0'
+
+    implementation "com.andkulikov:transitionseverywhere:1.8.0"
 }
